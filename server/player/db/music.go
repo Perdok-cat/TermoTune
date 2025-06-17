@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/perdokcat/TermoTune/shared"
 )
 
 type Music struct {
@@ -117,6 +118,9 @@ func (d *DB) AddMusic (music *Music) error {
 	if found && count > 0 {
 		d.InsertUniqueMusicName(music)
 	}
+	if err != nil {
+		return err
+	}
 
 	insertMusic := d.goquDB.Insert("music").
 		Rows(
@@ -125,7 +129,7 @@ func (d *DB) AddMusic (music *Music) error {
 				"source": music.Source,
 				"key":    music.Key,
 				"data":   music.Data,
-				"hash":   music.Hash,
+				"hash":   hash(music.Data),
 			},
 		)
 

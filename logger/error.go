@@ -14,7 +14,7 @@ func (e *TermoTuneError) TermoTuneError() string {
 	return errors
 } 
 
-func (e *TermoTuneError) Error(error string , detail ... error) *TermoTuneError {
+func (e *TermoTuneError) NewTermoTuneError(error string , detail ... error) *TermoTuneError {
 	return &TermoTuneError{
 		err:   error,
 		Details: detail,

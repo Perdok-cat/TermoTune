@@ -107,7 +107,7 @@ func (q *MusicQueue) Clear() {
 	q.SetCurrentIndex(0)
 }
 
-func (q *MusicQueue) Remove(_music Music) {
+func (q *MusicQueue) Remove(_music *Music) {
 	index := -1
 	for i, music := range q.queue {
 		if hashData(music.Data) == hashData(_music.Data) {

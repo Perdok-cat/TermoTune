@@ -1,80 +1,131 @@
 package logger
 
 import (
-	"bufio"
-	"log"
-	"os"
-
-	"github.com/perdokcat/TermoTune/config"
+    "fmt"
+    "go.uber.org/zap"
+    "go.uber.org/zap/zapcore"
 )
 
-var (
-	INFO_Logger *log.Logger
-	WARN_Logger *log.Logger
-	ERROR_Logger *log.Logger
-)
+var Logger *zap.Logger
 
-func initLogger() {
-	log_file_path, err := os.OpenFile(
-		config.GetConfig().TermoTunePath,
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 
-		0666)
-	// if the log file path is not valid, using stdout for logging	
-	if err != nil {
-		log_file_path = os.Stdout
-	}		
-	INFO_Logger = log.New(
-		log_file_path,
-		"INFO: ",
-		log.Ldate|log.Ltime|log.Lshortfile,
-	)
-	WARN_Logger = log.New(
-		log_file_path,
-		"WARN: ",
-		log.Ldate|log.Ltime|log.Lshortfile,
-	)
-	ERROR_Logger = log.New(
-		log_file_path,
-		"ERROR: ",
-		log.Ldate|log.Ltime|log.Lshortfile,
-	)
+// Custom error type for TermoTune
+type TermoTuneError struct {
+    Message   string
+    Component string
+    Code      int
 }
 
-func  LogError(msgErr TermoTuneError, extra ...any){ 
-	ERROR_Logger.Println(
-		msgErr,
-		extra,
-	)
+func (e *TermoTuneError) Error() string {
+    return fmt.Sprintf("TermoTune[%s]: %s (code: %d)", e.Component, e.Message, e.Code)
 }
 
-func LogInfor(msg string, extra ...any) {
-	INFO_Logger.Println(
-		msg,
-		extra,
-	)
+// Initialize logger
+func init() {
+    config := zap.NewDevelopmentConfig()
+    config.EncoderConfig.TimeKey = "timestamp"
+    config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+    config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+    
+    var err error
+    Logger, err = config.Build()
+    if err != nil {
+        panic(fmt.Sprintf("Failed to initialize logger: %v", err))
+    }
 }
 
-func LogWarn(warn string, extra ...any) {
-	WARN_Logger.Println(warn, extra)
+// NewTermoTuneError creates a new TermoTune error
+func NewTermoTuneError(message string) *TermoTuneError {
+    return &TermoTuneError{
+        Message:   message,
+        Component: "TermoTune",
+        Code:      1,
+    }
 }
 
-
-func GetLog() ([]string, error) {
-	log_file_path, err := os.Open(config.GetConfig().LogFile)
-
-	if err != nil  {
-		return nil, err
-	}
-
-	var LastLines []string 
-	scanner := bufio.NewScanner(log_file_path)
-	for scanner.Scan() {
-		LastLines = append(LastLines, scanner.Text())
-		if(len(LastLines) > 200) {
-			LastLines = LastLines[1:]
-		}
-	}
-
-	return LastLines, nil
+// NewTermoTuneErrorWithComponent creates a new TermoTune error with component
+func NewTermoTuneErrorWithComponent(message, component string) *TermoTuneError {
+    return &TermoTuneError{
+        Message:   message,
+        Component: component,
+        Code:      1,
+    }
 }
 
+// NewTermoTuneErrorWithCode creates a new TermoTune error with code
+func NewTermoTuneErrorWithCode(message string, code int) *TermoTuneError {
+    return &TermoTuneError{
+        Message:   message,
+        Component: "TermoTune",
+        Code:      code,
+    }
+}
+
+// Logging functions
+func LogError(err error) {
+    Logger.Error("Error occurred", zap.Error(err))
+}
+
+func LogErrorWithFields(err error, fields ...zap.Field) {
+    Logger.Error("Error occurred", append([]zap.Field{zap.Error(err)}, fields...)...)
+}
+
+func LogInfo(msg string, fields ...zap.Field) {
+    Logger.Info(msg, fields...)
+}
+
+func LogWarn(msg string, fields ...zap.Field) {
+    Logger.Warn(msg, fields...)
+}
+
+func LogDebug(msg string, fields ...zap.Field) {
+    Logger.Debug(msg, fields...)
+}
+
+func LogFatal(msg string, fields ...zap.Field) {
+    Logger.Fatal(msg, fields...)
+}
+
+// Convenience functions for common operations
+func LogDatabaseError(operation string, err error) {
+    Logger.Error("Database operation failed",
+        zap.String("operation", operation),
+        zap.Error(err),
+    )
+}
+
+func LogMusicOperation(operation, musicName string, err error) {
+    if err != nil {
+        Logger.Error("Music operation failed",
+            zap.String("operation", operation),
+            zap.String("music", musicName),
+            zap.Error(err),
+        )
+    } else {
+        Logger.Info("Music operation successful",
+            zap.String("operation", operation),
+            zap.String("music", musicName),
+        )
+    }
+}
+
+func LogPlaylistOperation(operation, playlistName string, err error) {
+    if err != nil {
+        Logger.Error("Playlist operation failed",
+            zap.String("operation", operation),
+            zap.String("playlist", playlistName),
+            zap.Error(err),
+        )
+    } else {
+        Logger.Info("Playlist operation successful",
+            zap.String("operation", operation),
+            zap.String("playlist", playlistName),
+        )
+    }
+}
+
+// Cleanup function
+func Sync() {
+    if Logger != nil {
+        Logger.Sync()
+    }
+}

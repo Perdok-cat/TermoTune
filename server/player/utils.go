@@ -7,6 +7,8 @@ import(
 	"github.com/gopxl/beep/mp3"
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/perdokcat/TermoTune/shared"
+	"github.com/gopxl/beep/speaker"
 )
 
 	
@@ -32,3 +34,16 @@ func hashData(data []byte) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+func (p *Player) isSpeakerLocked() bool {
+	return p.getPlayerState() == shared.Paused
+}
+
+func (p *Player) concernSpeakerLock(callback func()) {
+	if p.isSpeakerLocked() {
+		speaker.Unlock()
+		callback()
+		speaker.Lock()
+	} else {
+		callback()
+	}
+}
